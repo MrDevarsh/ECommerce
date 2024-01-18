@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local development settings
+*.sqlite3
+*.db
+
+# Static files (usually collected by Django's collectstatic)
+staticfiles/
+*.webassets-cache
+
+# Media files
+media/
+
+# Virtual environment
+venv/
+env/
+
+# IDE specific files
+.idea/
+*.pyc
+.vscode/
+
+# Compiled Python files
+*.pyc
+
+# Logs and databases
+*.log
+*.db
+*.sqlite3
+
+# Ignore the secret key file
+*.key
+
+# Ignore environment variables file
+.env
+
+# Ignore migration files
+*/migrations/
+
+# Ignore database
+*.db
+*.sqlite3
+
+# Ignore Docker
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
