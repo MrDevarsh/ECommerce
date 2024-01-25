@@ -9,16 +9,21 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=3)
     max_qty = models.IntegerField()
-    image = models.ImageField(upload_to='products/%Y/%m/%d/', storage=FileSystemStorage())
+    image = models.TextField()
 
 class Cart(models.Model):
-    items = models.ForeignKey(Product, on_delete=models.CASCADE)
-    value = models.DecimalField(max_digits=10, decimal_places=3)
+    cart_value = models.DecimalField(max_digits=10, decimal_places=3)
+    tax = models.DecimalField(max_digits=10, decimal_places=3)
+    cart_total = models.DecimalField(max_digits=10, decimal_places=3)
     session = models.ForeignKey(Session, on_delete=models.CASCADE)
     updated_on = models.DateTimeField(auto_now=True)
 
+class CartDetails(models.Model):
+    items = models.ForeignKey(Product, on_delete=models.CASCADE)
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE) 
+
 class Payment(models.Model):
-    value = models.DecimalField()
+    value = models.DecimalField(max_digits=10, decimal_places=3)
     created_on = models.DateTimeField(auto_now_add=True)
     status = models.BooleanField()
 
