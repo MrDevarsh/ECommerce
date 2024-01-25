@@ -1,32 +1,28 @@
-// import logo from './logo.svg';
-import { Route, Routes } from 'react-router-dom';
-import './App.css';
-import Home from './Views/Home';
-import Products from './Views/Products';
-import Cart from './Views/Cart';
+import React from "react";
+import Navbar from "./Components/Navbar/Navbar";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./Pages/Home";
+import Cart from "./Components/Cart/Cart";
+import Shipment from "./Pages/Shipment";
+import Invoice from "./Pages/Invoice";
+import { CartProvider } from "./Context/CartContext";
 
-function App() {
+const App = () => {
   return (
-
-    <Routes>
-      <Route
-        path='/'
-        element = {<Home />}
-      />
-
-      <Route
-        path='/products'
-        element= {<Products />}
-      />
-
-      <Route
-        path='/cart'
-        element= {<Cart />}
-      />
-
-    </Routes>
-
+    <div>
+      <BrowserRouter>
+        <CartProvider>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/shipment" element={<Shipment />} />
+            <Route path="/invoice" element={<Invoice />} />
+          </Routes>
+        </CartProvider>
+      </BrowserRouter>
+    </div>
   );
-}
+};
 
 export default App;
