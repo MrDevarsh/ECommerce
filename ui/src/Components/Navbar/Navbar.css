@@ -1,0 +1,12 @@
+.navbar {
+  padding: 1rem 1rem;
+  background: #D0BDF0;
+  /* background: rgb(238, 174, 202); */
+  /* background: radial-gradient(circle, rgba(238, 174, 202, 1) 0%, rgba(148, 187, 233, 1) 100%); */
+}
+
+.brand-logo {
+  width: 250px;
+  height: auto;
+  mix-blend-mode: multiply;
+}
