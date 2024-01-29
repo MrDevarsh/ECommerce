@@ -4,6 +4,8 @@ import { ShoppingBagOutlined, ShoppingCartOutlined } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 import { CartContext } from "../../Context/CartContext";
 import './Products.css';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Products = (props) => {
   const { cartItems, setCartItems } = useContext(CartContext);
@@ -27,6 +29,8 @@ const Products = (props) => {
 
       setCartItems([...cartItems, prodDetails]);
       setAdded(true);
+
+      toast("Product has been added in the cart", 'alert');
     }
   };
 

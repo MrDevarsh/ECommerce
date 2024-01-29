@@ -15,8 +15,10 @@ const Item = () => {
 
   const [productData, setProductData] = useState([]);
 
+  const url = process.env.REACT_APP_BASE_URL;
+
   useEffect(() => {
-    fetch("http://localhost:8000/api/products/")
+    fetch(url +  '/api/products/')
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch products");

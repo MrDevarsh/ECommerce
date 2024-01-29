@@ -6,11 +6,14 @@ import Cart from "./Components/Cart/Cart";
 import Shipment from "./Pages/Shipment";
 import Invoice from "./Pages/Invoice";
 import { CartProvider } from "./Context/CartContext";
+import { ToastContainer } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
   return (
     <div>
       <BrowserRouter>
+      <ToastContainer />
         <CartProvider>
           <Navbar />
           <Routes>

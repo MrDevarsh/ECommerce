@@ -6,21 +6,29 @@ const CartContext = createContext({
 });
 
 const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    const storedCartItems = sessionStorage.getItem("cartItems");
+    const data = (storedCartItems ? JSON.parse(storedCartItems) : []);
+    return data
+  });
 
   const addToCart = (productID) => setCartItems([...cartItems, productID]);
 
-  useEffect(() => {
-    const storedCartItems = localStorage.getItem("cartItems");
-    setCartItems(storedCartItems ? JSON.parse(storedCartItems) : []);
-  }, []);
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  // useEffect(() => {
+  //   const storedCartItems = sessionStorage.getItem("cartItems");
+  //   setCartItems(storedCartItems ? JSON.parse(storedCartItems) : []);
+  // }, []);
 
   useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    sessionStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
 
   return (
-    <CartContext.Provider value={{ cartItems, setCartItems, addToCart }}>
+    <CartContext.Provider value={{ cartItems, setCartItems, addToCart, clearCart }}>
       {children}
     </CartContext.Provider>
   );
