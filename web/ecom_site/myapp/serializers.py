@@ -6,14 +6,14 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
 
-class CartSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Cart
-        fields = '__all__'
-
 class CartDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartDetails
+        fields = ['product', 'quantity']
+
+class CartSerializer(serializers.ModelSerializer):    
+    class Meta:
+        model = Cart
         fields = '__all__'
 
 class PaymentSerializer(serializers.ModelSerializer):
