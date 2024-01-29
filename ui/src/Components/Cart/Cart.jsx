@@ -1,31 +1,52 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { CartContext } from "../../Context/CartContext";
 import CartItems from "./CartItems";
 import "./Cart.css";
 import Payment from "../../Pages/Payment";
-import Shipment from "../../Pages/Shipment";
 import EmptyCartMessage from "../../Pages/EmptyCartMessaage";
-import Error from "../../Pages/Error";
+import { toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
+import useSession from "../../Hooks/useSession";
 
 const Cart = () => {
-  const { cartItems, clearCart } = useContext(CartContext);
 
+  // session check
+  const sessionId = useSession();
+
+  const { cartItems, setCartItems } = useContext(CartContext);
+  const [loading, setLoading] = useState();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [error, setError] = useState();
-  const [loading, setLoading] = useState(true);
+
+  // Load cart data from sessionStorage on component mount
+  useEffect(() => {
+    const storedCartItems = sessionStorage.getItem("cartItems");
+    if (storedCartItems) {
+      setCartItems(JSON.parse(storedCartItems));
+    }
+  }, [setCartItems]);
+
+  const saveCartToLocalStorage = (cartData) => {
+    sessionStorage.setItem("cartItems", JSON.stringify(cartData));
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
 
   const proceedCheckout = (orderDetails) => {
-    console.log("checkout");
-    // Create the order payload
     const data = {
       cartValue: orderDetails.cartTotal,
       tax: orderDetails.tax,
       cartTotal: orderDetails.total,
-      cartDetails: cartItems
+      cartItems: cartItems,
+      session: sessionStorage.getItem('sessionId')
     };
 
-    // Make a POST request to your backend to process the order
-    fetch('http://localhost:8000/api/carts/', {
+    const url = process.env.REACT_APP_BASE_URL
+
+    // Simulate API call to save order data
+    fetch(url + '/api/carts/', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -34,9 +55,7 @@ const Cart = () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        // Handle the response from the backend
-        // For example, you might show a success message or redirect to a thank you page
-        console.log("Order placed successfully:", data);
+        toast("Order placed successfully", "info");
         setOrderPlaced(true);
         // Clear the cart after placing the order
         clearCart();
@@ -47,10 +66,15 @@ const Cart = () => {
       });
   };
 
+  const redirectToHome = () => {
+    window.location.href = '/';
+  };
 
-    if(error){
-        <Error message={error} />
+  useEffect(() => {
+    if (!sessionId) {
+      redirectToHome();
     }
+  }, [sessionId]);
 
   return (
     <>
@@ -64,24 +88,21 @@ const Cart = () => {
               <hr />
 
               <div className="cart-items">
-                {cartItems.map((item, i) => {
-                  return (
-                    <CartItems
-                      key={i}
-                      id={item.id}
-                      name={item.name}
-                      image={item.image}
-                      price={item.price}
-                      qty={item.qty}
-                    />
-                  );
-                })}
+                {cartItems.map((item, i) => (
+                  <CartItems
+                    key={i}
+                    id={item.id}
+                    name={item.name}
+                    image={item.image}
+                    price={item.price}
+                    qty={item.qty}
+                  />
+                ))}
               </div>
             </div>
             <div className="col-md-4">
               <h1>Payment Details</h1>
               <hr />
-              {/* <Shipment onShipmentUpdate= {handleShipmentUpdate}/> */}
               <Payment proceedCheckout={proceedCheckout} />
             </div>
           </div>
