@@ -24,8 +24,8 @@ class CartDetails(models.Model):
     quantity = models.IntegerField(default=1) 
 
 class Shipment(models.Model):
-    shipmentAddress = models.TextField()
-    billingAddress = models.TextField()
+    shipping_address = models.TextField()
+    billing_address = models.TextField()
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
 
 class ShipmentDetails(models.Model):
@@ -33,12 +33,12 @@ class ShipmentDetails(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
     status = models.TextField()
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE)
-    trackingId = models.TextField()
+    tracking_id = models.TextField()
 
 class Payment(models.Model):
     value = models.DecimalField(max_digits=10, decimal_places=3)
     created_on = models.DateTimeField(auto_now_add=True)
     status = models.BooleanField()
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
-    paymentId = models.TextField()
+    payment_id = models.TextField()
     

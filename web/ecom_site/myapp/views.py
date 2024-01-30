@@ -89,12 +89,18 @@ def add_to_carts(request):
                             
             if(res_cart_detail.status_code == 201):
                 
-                res_ship = add_shipment(request, cart.id)
+                res_ship = add_shipment(cart.id, cart_data)
                 res_payment = add_payment(cart.id, cart_data)
                 
-                if(res_ship.status_code == 201 and res_payment.status_code == 201):
-                    return Response({'message': res_payment.message + ' ' + res_ship.message}, status=status.HTTP_200_OK)
                 
+                if(res_ship.status_code == 201 and res_payment.status_code == 201):
+                    
+                    
+                    return Response({'paymentDetails': res_payment.data.get('message'),
+                                     'shipmentDetails': res_ship.data.get('message')}, status=status.HTTP_200_OK)
+                
+                else:
+                    return Response(status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
         else:
@@ -116,15 +122,11 @@ def add_cart_details(request, cart, cart_data):
             
             if serializer.is_valid():
                 serializer.save()
-                
-                print("-----------------------Inside Cart Details-----------------------------")
-
-                
                 return Response({'message': 'Cart details added successfully'}, status=status.HTTP_201_CREATED)
+            
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response({'message': 'Cart details added successfully'}, status=status.HTTP_201_CREATED)
+
 
     except json.JSONDecodeError:
         return Response({'message': 'Invalid JSON data in request body'}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,23 +145,20 @@ def checkout(request):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@permission_classes([IsAuthenticated])
-def add_shipment(request, cart_id):
-    data = json.loads(request.body)
-    shipping_address = data.get('shippingAddress')
-    billing_address = data.get('billingAddress')
+
+def add_shipment(cart_id, cart_data):
+    shipping_address = cart_data.get('shippingAddress')
+    billing_address = cart_data.get('billingAddress')
     
     serializer = ShipmentSerializer(data={
-        'shippingAddress': shipping_address,
-        'billingAddress': billing_address,
+        'shipping_address': shipping_address,
+        'billing_address': billing_address,
         'cart': cart_id
     })
     
+    
     if (serializer.is_valid()):
         shipping = serializer.save()
-        
-        print("-----------------------Inside Shipment-----------------------------")
-
         
         return add_shipping_details(shipping.id)
         
@@ -173,12 +172,11 @@ def add_shipping_details(shippingId):
     serializer = ShipmentDetailsSerializer(data={
         'shipment': shippingId,
         'status': 'Ready to Dispatch',
-        'trackingId': trackingId
+        'tracking_id': trackingId
     })
     
     if (serializer.is_valid()):
         serializer.save()
-        print("-----------------------Inside Shipment Details-----------------------------")
         
         return Response({'message': 'Order Shipment Place. Tracking ID: ' + trackingId}, status=status.HTTP_201_CREATED)
 
@@ -191,10 +189,12 @@ def add_payment(cart_id, cart_data):
     serializer = PaymentSerializer(data={
         'value': cart_data.get('cartTotal'),
         'created_on': datetime.datetime.now(),
-        'status': 'Done',
+        'status': True,
         'cart': cart_id,
-        'paymentId': paymentId,
+        'payment_id': paymentId,
     })
+    
+    print(serializer)
     
     if(serializer.is_valid()):
         serializer.save()
