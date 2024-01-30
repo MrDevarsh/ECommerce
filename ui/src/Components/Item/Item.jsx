@@ -1,39 +1,52 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "./Item.css";
 import data from "../Assets/img-data";
 import Products from "../Products/Products";
-import { CircularProgress, IconButton, TextField } from "@mui/material";
+import { IconButton, TextField } from "@mui/material";
 import { SearchOutlined } from "@mui/icons-material";
 import Error from "../../Pages/Error";
 import CustomLoader from "../../Pages/CustomLoader";
+import axios from "axios";
+import { AuthContext } from "../../Context/AuthContext";
 
 const Item = () => {
   const [searchTerm, setSearchTerm] = useState("");
   // const [productData, setProductData] = useState(data);
   const [error, setError] = useState();
   const [loading, setLoading] = useState(true);
+  const { accessToken } = useContext(AuthContext);
 
   const [productData, setProductData] = useState([]);
 
-  const url = process.env.REACT_APP_BASE_URL;
+  const token = accessToken;
 
   useEffect(() => {
-    fetch(url +  '/api/products/')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
+    const fetchData = async () => {
+      try {
+
+        if (!accessToken) {
+          return;
         }
-        return response.json();
-      })
-      .then((data) => {
-        setProductData(data);
+
+        console.log(token);
+
+        const response = await axios.get(process.env.REACT_APP_BASE_URL + '/api/products/'
+        , {
+          headers: {
+            'Authorization': `Bearer ` + token,
+          }
+        });
+
+        setProductData(response.data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message);
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchData();
+  }, [accessToken]);
 
   const loader = (
     <div className="loader-container">

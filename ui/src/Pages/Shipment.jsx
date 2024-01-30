@@ -1,136 +1,122 @@
 import React, { useContext, useState } from "react";
-import {
-  Card,
-  CardContent,
-  TextField,
-  IconButton,
-  Button,
-  Modal,
-  FormControlLabel,
-  Checkbox,
-  Box,
-} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import { CartContext } from "../Context/CartContext";
+import img2 from "../Components/Assets/img2.jpg";
+import { IconButton, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { ArrowForward } from "@mui/icons-material";
+import { AuthContext } from "../Context/AuthContext";
+import axios from "axios";
+import CustomLoader from "./CustomLoader";
+import Error from "./Error";
+import { Paper } from "@mui/material";
 
-const Shipment = ({ onShipmentUpdate }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [billingAddress, setBillingAddress] = useState("");
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [sameAddresses, setSameAddresses] = useState(false);
-
-  const { cartItems } = useContext(CartContext);
-
-  const handleEdit = () => {
-    setModalOpen(true);
+const Shipment = () => {
+  const containerStyle = {
+    backgroundImage: `url(${img2})`,
+    backgroundPosition: "bottom right",
+    backgroundSize: "cover",
+    backgroundRepeat: "no-repeat",
+    minHeight: "80vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
   };
 
-  const handleSave = () => {
-    if(sameAddresses){
-      setShippingAddress(billingAddress)
+  const inputStyle = {
+    width: "400px",
+    padding: "15px",
+    border: "none",
+    borderRadius: "5px",
+    backgroundColor: "#fff",
+    color: "#333",
+    boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.1)",
+  };
+
+  const [shipmentId, setShipmentId] = useState();
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(true);
+
+  const [shipmentDetails, setShipmentDetails] = useState({});
+
+  const { accessToken } = useContext(AuthContext);
+
+  const token = accessToken;
+
+  const handleSearch = () => {
+    try {
+      if (!accessToken) {
+        return;
+      }
+
+      console.log(token);
+
+      const response = axios.post(
+        process.env.REACT_APP_BASE_URL + "/api/shipmentDetails/" + shipmentId,
+        {
+          headers: {
+            Authorization: `Bearer ` + token,
+          },
+        }
+      );
+      setShipmentDetails(response.data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
     }
-    setModalOpen(false);
-
-    onShipmentUpdate({
-      billingAddress, shippingAddress
-    });
   };
 
-  const handleCancel = () => {
-    setModalOpen(false);
-  };
-
-  const handleAddressChange = (add) => {
-    setBillingAddress(add);
-    if(sameAddresses){
-      setShippingAddress(add);
-    }
-  }
-
-  const handleCheckboxChange = () => {
-    setSameAddresses((prevSame) => !prevSame);
-    if (sameAddresses) {
-      setShippingAddress(shippingAddress);
-    } else {
-      setShippingAddress(billingAddress);
-    }
-  };
+  const loader = (
+    <div className="loader-container">
+      <CustomLoader />
+    </div>
+  );
 
   return (
     <>
-      <Card sx={{ maxWidth: 300, margin: 2 }}>
-        <CardContent>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Billing Address:</span>
-            <span>{billingAddress || "Not specified"}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Shipping Address:</span>
-            <span>{shippingAddress || "Not specified"}</span>
-          </div>
-          <div style={{ textAlign: "right", marginTop: "10px" }}>
-            <IconButton color="primary" onClick={handleEdit}>
-              <EditIcon />
-            </IconButton>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Modal
-        open={modalOpen}
-        onClose={handleCancel}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Box
-          sx={{
-            bgcolor: "background.paper",
-            border: "2px solid #000",
-            p: 4,
-            minWidth: 300,
-            borderRadius: 8,
-          }}
-        >
+      {loading ? (
+        loader
+      ) : error ? (
+        <Error message={error} />
+      ) : (
+        <div className="container" style={containerStyle}>
           <TextField
-            variant="outlined"
-            label="Billing Address"
-            fullWidth
-            value={billingAddress}
-            onChange={(e) => handleAddressChange(e.target.value)}
-            sx={{ marginBottom: 2 }}
+            type="text"
+            placeholder="Enter Shipment ID"
+            style={inputStyle}
+            onChange={(e) => setShipmentId(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <IconButton onClick={handleSearch}>
+                  <ArrowForward />
+                </IconButton>
+              ),
+            }}
           />
-          <TextField
-            variant="outlined"
-            label="Shipping Address"
-            fullWidth
-            value={sameAddresses ? billingAddress : shippingAddress}
-            onChange={(e) => setShippingAddress(e.target.value)}
-            disabled={sameAddresses}
-            sx={{ marginBottom: 2 }}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={sameAddresses}
-                onChange={handleCheckboxChange}
-              />
-            }
-            label="Same as Billing Address"
-            sx={{ marginBottom: 2 }}
-          />
-          <div style={{ textAlign: "right", marginTop: "10px" }}>
-            <Button color="primary" onClick={handleSave}>
-              Save
-            </Button>
-            <Button color="secondary" onClick={handleCancel} sx={{ marginLeft: 2 }}>
-              Cancel
-            </Button>
-          </div>
-        </Box>
-      </Modal>
+          <TableContainer component={Paper} style={{
+            width: "500px",
+            marginTop: "20px",
+          }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Shipment ID</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Origin</TableCell>
+                  <TableCell>Destination</TableCell>
+                  </TableRow>
+              </TableHead>
+              <TableBody>
+                <TableRow>
+                  <TableCell>{shipmentDetails.shipmentId}</TableCell>
+                  <TableCell>{shipmentDetails.status}</TableCell>
+                  <TableCell>{shipmentDetails.origin}</TableCell>
+                  <TableCell>{shipmentDetails.destination}</TableCell>
+                  </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      )}
     </>
   );
 };

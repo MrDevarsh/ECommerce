@@ -1,13 +1,11 @@
 // useSession.js
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { CartContext } from '../Context/CartContext';
 
 const SESSION_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minute
 
 const useSession = () => {
     const [sessionId, setSessionId] = useState(null);
-    const { clearCart, setCartItems } = useContext(CartContext);
 
     const url = process.env.REACT_APP_BASE_URL;
 
@@ -32,7 +30,6 @@ const useSession = () => {
 
     useEffect(() => {
         const refreshInterval = setInterval(() => {
-            clearCart();
             sessionStorage.removeItem('sessionId');    
             clearInterval(refreshInterval);
         }, SESSION_REFRESH_INTERVAL);

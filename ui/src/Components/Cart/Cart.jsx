@@ -7,6 +7,7 @@ import EmptyCartMessage from "../../Pages/EmptyCartMessaage";
 import { toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import useSession from "../../Hooks/useSession";
+import { AuthContext } from "../../Context/AuthContext";
 
 const Cart = () => {
 
@@ -14,20 +15,21 @@ const Cart = () => {
   const sessionId = useSession();
 
   const { cartItems, setCartItems } = useContext(CartContext);
+  const { accessToken } = useContext(AuthContext);
   const [loading, setLoading] = useState();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [error, setError] = useState();
 
   // Load cart data from sessionStorage on component mount
   useEffect(() => {
-    const storedCartItems = sessionStorage.getItem("cartItems");
+    const storedCartItems = localStorage.getItem("cartItems");
     if (storedCartItems) {
       setCartItems(JSON.parse(storedCartItems));
     }
   }, [setCartItems]);
 
   const saveCartToLocalStorage = (cartData) => {
-    sessionStorage.setItem("cartItems", JSON.stringify(cartData));
+    localStorage.setItem("cartItems", JSON.stringify(cartData));
   };
 
   const clearCart = () => {
@@ -40,7 +42,9 @@ const Cart = () => {
       tax: orderDetails.tax,
       cartTotal: orderDetails.total,
       cartItems: cartItems,
-      session: sessionStorage.getItem('sessionId')
+      session: sessionStorage.getItem('sessionId'),
+      shippingAddress: orderDetails.shippingAddress,
+      billingAddress: orderDetails.billingAddress
     };
 
     const url = process.env.REACT_APP_BASE_URL
@@ -49,16 +53,19 @@ const Cart = () => {
     fetch(url + '/api/carts/', {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        'Authorization': `Bearer ` + accessToken
       },
       body: JSON.stringify(data),
     })
-      .then((response) => response.json())
-      .then((data) => {
-        toast("Order placed successfully", "info");
-        setOrderPlaced(true);
-        // Clear the cart after placing the order
-        clearCart();
+      .then((response) => {
+        if (response.ok) {
+          toast("Order placed successfully", "info");
+          setOrderPlaced(true);
+          clearCart();
+        } else {
+          setError(`Failed to place order: ${response.status} ${response.statusText}`);
+          toast(`Failed to place order: ${response.status} ${response.statusText}`, 'error');
+        }
       })
       .catch((err) => {
         setError(err.message);

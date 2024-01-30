@@ -1,22 +1,233 @@
-from django.shortcuts import render
-from .models import *
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import *
-import json
+from rest_framework.decorators import api_view
 from rest_framework import status
-import uuid
-from django.utils import timezone
-from ecom_site import settings
+from .models import Session, Product, Cart, CartDetails, Shipment, ShipmentDetails, Payment
+from .serializers import *
 import datetime
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import action
+import uuid
+import json
+from ecom_site import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
+
+# permission_classes = (IsAuthenticated)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_access_token(request):
+    user, created = User.objects.get_or_create(username='default_user')
+
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+
+    expiration_time = timezone.now() + timedelta(minutes=settings.SESSION_COOKIE_AGE)  # Adjust as needed
+    response_data = {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'access_token_expiration': expiration_time,
+    }
+
+    return Response(response_data)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_access_token(request):
+    refresh_token = request.data.get('refresh')
+    if not refresh_token:
+        return Response({'error': 'Refresh token is required'}, status=400)
+
+    try:
+        refresh = RefreshToken(refresh_token)
+        access_token = str(refresh.access_token)
+        expiration_time = timezone.now() + timedelta(minutes=settings.SESSION_COOKIE_AGE)  # Adjust as needed
+
+        response_data = {
+            'access_token': access_token,
+            'access_token_expiration': expiration_time,
+        }
+        return Response(response_data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_products(request):
+    if request.method == 'GET':
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
 
 
-# Create your views here.
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def add_to_carts(request):
+    if request.method == 'POST':
+        cart_data = json.loads(request.body)
+        serializer = CartSerializer(data={
+            'cart_value': cart_data.get('cartValue'),
+            'tax': cart_data.get('tax'),
+            'cart_total': cart_data.get('cartTotal'),
+            'updated_on': datetime.datetime.now()
+        })
 
-class SessionView(APIView):
-    def post(self, request):
+        if serializer.is_valid():
+            cart = serializer.save()
+            
+            print("-----------------------Inside Cart-----------------------------")
+
+            res_cart_detail = add_cart_details(request, cart, cart_data)
+                            
+            if(res_cart_detail.status_code == 201):
+                
+                res_ship = add_shipment(request, cart.id)
+                res_payment = add_payment(cart.id, cart_data)
+                
+                if(res_ship.status_code == 201 and res_payment.status_code == 201):
+                    return Response({'message': res_payment.message + ' ' + res_ship.message}, status=status.HTTP_200_OK)
+                
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+def add_cart_details(request, cart, cart_data):
+    try:
+        
+        for item in cart_data.get('cartItems', []):
+            product_id = item.get('id')
+            product_qty = item.get('qty')
+            
+            serializer = CartDetailsSerializer(data={
+                'cart': cart.id,
+                'product': product_id,
+                'quantity': product_qty
+            })
+            
+            if serializer.is_valid():
+                serializer.save()
+                
+                print("-----------------------Inside Cart Details-----------------------------")
+
+                
+                return Response({'message': 'Cart details added successfully'}, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'message': 'Cart details added successfully'}, status=status.HTTP_201_CREATED)
+
+    except json.JSONDecodeError:
+        return Response({'message': 'Invalid JSON data in request body'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def checkout(request):
+    if request.method == 'POST':
+        if request.headers['Content-Type'] == 'application/json':
+            payment_data = json.loads(request.body)
+            serializer = PaymentSerializer(data=payment_data)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@permission_classes([IsAuthenticated])
+def add_shipment(request, cart_id):
+    data = json.loads(request.body)
+    shipping_address = data.get('shippingAddress')
+    billing_address = data.get('billingAddress')
+    
+    serializer = ShipmentSerializer(data={
+        'shippingAddress': shipping_address,
+        'billingAddress': billing_address,
+        'cart': cart_id
+    })
+    
+    if (serializer.is_valid()):
+        shipping = serializer.save()
+        
+        print("-----------------------Inside Shipment-----------------------------")
+
+        
+        return add_shipping_details(shipping.id)
+        
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+def add_shipping_details(shippingId):
+    trackingId = 'JS_SH00' + str(shippingId)
+    
+    serializer = ShipmentDetailsSerializer(data={
+        'shipment': shippingId,
+        'status': 'Ready to Dispatch',
+        'trackingId': trackingId
+    })
+    
+    if (serializer.is_valid()):
+        serializer.save()
+        print("-----------------------Inside Shipment Details-----------------------------")
+        
+        return Response({'message': 'Order Shipment Place. Tracking ID: ' + trackingId}, status=status.HTTP_201_CREATED)
+
+    else:
+        return Response({'message': 'Error storing shipping details'}, status=status.HTTP_400_BAD_REQUEST)
+    
+def add_payment(cart_id, cart_data):
+    paymentId = 'JS_PAY00' + str(cart_id)
+    
+    serializer = PaymentSerializer(data={
+        'value': cart_data.get('cartTotal'),
+        'created_on': datetime.datetime.now(),
+        'status': 'Done',
+        'cart': cart_id,
+        'paymentId': paymentId,
+    })
+    
+    if(serializer.is_valid()):
+        serializer.save()
+
+        print("-----------------------Inside Payment Details-----------------------------")
+
+        return Response({'message': 'Payment Successfull. PaymentId: ' + paymentId}, status=status.HTTP_201_CREATED)
+    
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_invoice(request):
+    if request.method == 'GET':
+        # Assuming you want to get all payments, adjust the queryset accordingly
+        payments = Payment.objects.all()
+        serializer = PaymentSerializer(payments, many=True)
+        return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def track_shipment(request):
+    if request.method == 'GET':
+        # Assuming you want to get all shipment details, adjust the queryset accordingly
+        shipment_details = ShipmentDetails.objects.all()
+        serializer = ShipmentDetailsSerializer(shipment_details, many=True)
+        return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_session_id(request):
+    if request.method == 'POST':
         session_id = uuid.uuid4()
         current_time = timezone.now()
         expires_at = current_time + timezone.timedelta(minutes=settings.SESSION_COOKIE_AGE)
@@ -48,85 +259,15 @@ class SessionView(APIView):
             serializer = SessionSerializer(new_session)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class ProductView(APIView):
-    def get(self, request):
-        products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
 
-class CartView(APIView):
+@api_view(['GET'])
+def get_sessions(request):
+    sessions = Session.objects.all()
+    serializer = SessionSerializer(sessions, many=True)
+    return Response(serializer.data)
 
-    def get(self, request):
-        cart = Cart.objects.all()
-        serializer = CartSerializer(cart, many=True)
-        return Response(serializer.data)
-
-    # def post(self, request):
-        # if request.headers['Content-Type'] == 'application/json':
-        #     cart_data = json.loads(request.body)
-
-        #     # Assuming cart_data has the necessary information to create a Cart object
-        #     serializer = CartSerializer(data={
-        #         'cart_total': cart_data.get('cartTotal'),
-        #         'cart_value': cart_data.get('cartValue'),
-        #         'session': cart_data.get('session_id'), 
-        #         'tax': cart_data.get('tax')
-        #     })
-
-
-        #     if serializer.is_valid():
-        #         serializer.save()
-        #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-        #     else:
-        #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        if request.headers['Content-Type'] == 'application/json':
-            cart_data = json.loads(request.body)
-
-            print("-------------->>>")
-            print(cart_data)
-
-            print("-----------------------")
-            print(request.body)
-            
-            # session_data =[] SessionView.get_by_session_id(SessionView(), request, cart_data.get('session'))
-            session_id = 1
-            
-            # if(session_data.status_code == '200'):
-            #     session_id = session_data.id
-            
-            # Assuming cart_data has the necessary information to create a Cart object
-            serializer = CartSerializer(data={
-                'cart_value': cart_data.get('cartValue'),
-                'tax': cart_data.get('tax'),
-                'cart_total': cart_data.get('cartTotal'),
-                'session' : session_id,
-                'updated_on': datetime.datetime.now()
-            })
-
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-            
-class SessionView(APIView):
-
-    def get(self, request):
-        session = Session.objects.all()
-        serializer = SessionSerializer(session, many=True)
-        return Response(serializer.data)
-    
-    def get_by_session_id(self, request, sessionId):
-        session_instance = Session.objects.get(Session, session_id='cb093495-5d77-42e2-9bab-53dd1668ddf0')
-
-        session_id = session_instance.id
-        
-        print("<<<<------------------>>>>")
-        print(session_id)
-
-        # Now 'session_id' contains the id value corresponding to session_id '123'
-        return Response({'id': session_id}, status=status.HTTP_200_OK)
+@api_view(['GET'])
+def get_session_by_id(request, session_id):
+    session_instance = get_object_or_404(Session, session_id=session_id)
+    serializer = SessionSerializer(session_instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
